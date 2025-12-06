@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Space Mono', monospace;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: #0a0a0a;
+  color: #ffffff;
+}
+
+/* Fire gradient text */
+.fire-text {
+  background: linear-gradient(135deg, #f97316 0%, #ef4444 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glowing effect */
+.glow-fire {
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.3),
+              0 0 40px rgba(249, 115, 22, 0.2),
+              0 0 60px rgba(249, 115, 22, 0.1);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* VC Avatar colors */
+.vc-marcus {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+}
+
+.vc-victoria {
+  border-color: #8b5cf6;
+  background: linear-gradient(135deg, #8b5cf6 0%, #5b21b6 100%);
+}
+
+.vc-david {
+  border-color: #22c55e;
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
+}
