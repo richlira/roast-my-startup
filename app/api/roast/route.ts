@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { ROAST_SYSTEM_PROMPT, createRoastPrompt } from "@/lib/prompts";
 
+// Extend timeout for Vercel (max 60s on hobby, 300s on pro)
+export const maxDuration = 60;
+
 // PDF text extraction using pdf-parse
 async function extractPDFText(buffer: Buffer): Promise<string> {
   try {
@@ -17,6 +20,12 @@ async function extractPDFText(buffer: Buffer): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check API key first
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error("ANTHROPIC_API_KEY not configured");
+      return new Response("API key not configured", { status: 500 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 
@@ -44,48 +53,45 @@ export async function POST(request: NextRequest) {
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
 
-    // Create streaming response
-    const encoder = new TextEncoder();
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    // Use streaming with proper ReadableStream for Vercel
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          const response = await anthropic.messages.stream({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 4096,
+            system: ROAST_SYSTEM_PROMPT,
+            messages: [
+              {
+                role: "user",
+                content: createRoastPrompt(truncatedText),
+              },
+            ],
+          });
 
-    // Start the Claude stream in the background
-    (async () => {
-      try {
-        const response = await anthropic.messages.stream({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 4096,
-          system: ROAST_SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: createRoastPrompt(truncatedText),
-            },
-          ],
-        });
-
-        for await (const event of response) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            await writer.write(encoder.encode(event.delta.text));
+          for await (const event of response) {
+            if (
+              event.type === "content_block_delta" &&
+              event.delta.type === "text_delta"
+            ) {
+              controller.enqueue(new TextEncoder().encode(event.delta.text));
+            }
           }
+          controller.close();
+        } catch (error) {
+          console.error("Claude streaming error:", error);
+          controller.enqueue(
+            new TextEncoder().encode("\n\nError al conectar con Claude. Verifica la API key.")
+          );
+          controller.close();
         }
-      } catch (error) {
-        console.error("Claude streaming error:", error);
-        await writer.write(
-          encoder.encode("\n\nSYSTEM: Error al generar el roast. Intenta de nuevo.")
-        );
-      } finally {
-        await writer.close();
-      }
-    })();
+      },
+    });
 
-    return new Response(stream.readable, {
+    return new Response(stream, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
+        "Cache-Control": "no-cache",
       },
     });
   } catch (error) {
@@ -96,9 +102,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
